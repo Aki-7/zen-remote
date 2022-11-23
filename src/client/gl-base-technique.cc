@@ -83,6 +83,18 @@ GlBaseTechnique::Commit()
   if (!pending_.gl_textures.empty()) {
     std::list<std::pair<uint32_t, std::weak_ptr<GlTexture>>> gl_textures;
     pending_.gl_textures.swap(gl_textures);
+
+    auto iter = gl_textures.begin();
+    while (iter != gl_textures.end()) {
+      // TODO: exclude overwritten texture
+      if (auto gl_texture = iter->second.lock()) {
+        gl_texture->Commit();
+        ++iter;
+      } else {
+        iter = gl_textures.erase(iter);
+      }
+    }
+
     auto command = CreateCommand([gl_textures = std::move(gl_textures),
                                      rendering = rendering_](bool cancel) {
       if (cancel) {
@@ -243,6 +255,7 @@ GlBaseTechnique::ApplyGlTexture()
 {
   for (auto& texture : rendering_->gl_textures) {
     if (auto gl_texture = texture.second.lock()) {
+      // TODO: glActivateTexture (how to specify arg?)
       glBindTexture(texture.first, gl_texture->texture_id());
     }
   }
